@@ -1,0 +1,18 @@
+<?php
+require_once __DIR__ . '/config.php';
+
+$now = time();
+
+foreach (glob(JOBS_DIR . '/*.json') as $file) {
+    if ($now - filemtime($file) > MAX_JOB_AGE) {
+        unlink($file);
+    }
+}
+
+foreach (glob(DOWNLOADS_DIR . '/*') as $file) {
+    if (is_file($file) && $now - filemtime($file) > MAX_DOWNLOAD_AGE) {
+        unlink($file);
+    }
+}
+
+echo "Cleanup done\n";
