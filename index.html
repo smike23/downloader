@@ -1,1 +1,226 @@
-<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dateidownload</title><style>body {    font-family: Arial, sans-serif;    margin: 0;    padding: 20px;}.container {    max-width: 760px;    margin: 0 auto;}h2 {    margin-top: 0;}input[type="url"],input[type="text"] {    width: 100%;    padding: 12px;    font-size: 16px;    box-sizing: border-box;}.buttons {    display: flex;    gap: 10px;    margin-top: 10px;    flex-wrap: wrap;}button {    flex: 1;    padding: 12px;    font-size: 16px;    cursor: pointer;}progress {    width: 100%;    height: 22px;    margin-top: 20px;}#status {    margin-top: 10px;    font-weight: bold;    word-break: break-word;}#downloadLink {    display: none;    margin-top: 20px;    padding: 12px;    background: #f7f7f7;    border: 1px solid #ddd;}#downloadLink input {    margin-top: 8px;}#resetBtn {    margin-top: 10px;}</style></head><body><div class="container">    <h2>Dateidownload</h2>    <p>        <a href="list_downloads.php">            📁 Alle Downloads anzeigen        </a>    </p>    <input type="url"           id="url"           placeholder="https://example.com/datei.zip"           required>    <div class="buttons">        <button id="startBtn" onclick="startDownload()">Download starten</button>        <button id="cancelBtn" onclick="cancelDownload()" disabled>Abbrechen</button>    </div>    <progress id="bar" value="0" max="100"></progress>    <div id="status">Bereit</div>    <div id="downloadLink">        <strong>Download-URL</strong>        <input type="text" id="fileUrl" readonly>        <button onclick="copyToClipboard()">In Zwischenablage kopieren</button>        <button id="resetBtn" onclick="resetForm()">            Neuen Download starten        </button>    </div></div><script>let jobId = null;let interval = null;let lastPercent = 0;function startDownload() {    const url = document.getElementById('url').value;    if (!url) return;    lastPercent = 0;    document.getElementById('bar').value = 0;    document.getElementById('status').textContent = 'Initialisierung …';    document.getElementById('downloadLink').style.display = 'none';    document.getElementById('startBtn').disabled = true;    document.getElementById('cancelBtn').disabled = false;    fetch('start_download.php', {        method: 'POST',        headers: {            'Content-Type': 'application/x-www-form-urlencoded'        },        body: 'url=' + encodeURIComponent(url)    })    .then(response => response.json())    .then(data => {        jobId = data.jobId;        pollProgress();    });}function pollProgress() {    interval = setInterval(() => {        fetch('progress.php?job=' + jobId)        .then(response => response.json())        .then(data => {            if (typeof data.percent === 'number' && data.percent >= lastPercent) {                lastPercent = data.percent;                document.getElementById('bar').value = lastPercent;            }            document.getElementById('status').textContent =                lastPercent + '% (' +                data.downloaded_mb + ' MB / ' +                (data.total_mb ?? '?') + ' MB) – ' +                data.filename;            if (data.status === 'fertig') {                clearInterval(interval);                document.getElementById('status').textContent =                    'Download abgeschlossen';                document.getElementById('fileUrl').value = data.download_url;                document.getElementById('downloadLink').style.display = 'block';                document.getElementById('startBtn').disabled = true;                document.getElementById('cancelBtn').disabled = true;            }            if (data.status === 'abgebrochen') {                clearInterval(interval);                document.getElementById('status').textContent =                    'Download abgebrochen';                document.getElementById('startBtn').disabled = false;                document.getElementById('cancelBtn').disabled = true;            }        });    }, 500);}function cancelDownload() {    if (!jobId) return;    fetch('cancel.php?job=' + jobId);    document.getElementById('status').textContent =        'Abbruch wird durchgeführt …';}function resetForm() {    if (interval) {        clearInterval(interval);    }    jobId = null;    lastPercent = 0;    document.getElementById('url').value = '';    document.getElementById('bar').value = 0;    document.getElementById('status').textContent = 'Bereit';    document.getElementById('downloadLink').style.display = 'none';    document.getElementById('startBtn').disabled = false;    document.getElementById('cancelBtn').disabled = true;}function copyToClipboard() {    const input = document.getElementById('fileUrl');    input.select();    document.execCommand('copy');}</script></body></html>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Dateidownload</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+h2 {
+    margin-top: 0;
+}
+
+input[type="url"],
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+.buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+button {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+progress {
+    width: 100%;
+    height: 22px;
+    margin-top: 20px;
+}
+
+#status {
+    margin-top: 10px;
+    font-weight: bold;
+    word-break: break-word;
+}
+
+#downloadLink {
+    display: none;
+    margin-top: 20px;
+    padding: 12px;
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+}
+
+#downloadLink input {
+    margin-top: 8px;
+}
+
+#resetBtn {
+    margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>Dateidownload</h2>
+
+    <p>
+        <a href="list_downloads.php">
+            📁 Alle Downloads anzeigen
+        </a>
+    </p>
+
+    <input type="url"
+           id="url"
+           placeholder="https://example.com/datei.zip"
+           required>
+
+    <div class="buttons">
+        <button id="startBtn" onclick="startDownload()">Download starten</button>
+        <button id="cancelBtn" onclick="cancelDownload()" disabled>Abbrechen</button>
+    </div>
+
+    <progress id="bar" value="0" max="100"></progress>
+
+    <div id="status">Bereit</div>
+
+    <div id="downloadLink">
+        <strong>Download-URL</strong>
+        <input type="text" id="fileUrl" readonly>
+        <button onclick="copyToClipboard()">In Zwischenablage kopieren</button>
+
+        <button id="resetBtn" onclick="resetForm()">
+            Neuen Download starten
+        </button>
+    </div>
+
+</div>
+
+<script>
+let jobId = null;
+let interval = null;
+let lastPercent = 0;
+
+function startDownload() {
+
+    const url = document.getElementById('url').value;
+    if (!url) return;
+
+    lastPercent = 0;
+
+    document.getElementById('bar').value = 0;
+    document.getElementById('status').textContent = 'Initialisierung …';
+    document.getElementById('downloadLink').style.display = 'none';
+
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('cancelBtn').disabled = false;
+
+    fetch('start_download.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'url=' + encodeURIComponent(url)
+    })
+    .then(response => response.json())
+    .then(data => {
+        jobId = data.jobId;
+        pollProgress();
+    });
+}
+
+function pollProgress() {
+
+    interval = setInterval(() => {
+        fetch('progress.php?job=' + jobId)
+        .then(response => response.json())
+        .then(data => {
+
+            if (typeof data.percent === 'number' && data.percent >= lastPercent) {
+                lastPercent = data.percent;
+                document.getElementById('bar').value = lastPercent;
+            }
+
+            document.getElementById('status').textContent =
+                lastPercent + '% (' +
+                data.downloaded_mb + ' MB / ' +
+                (data.total_mb ?? '?') + ' MB) – ' +
+                data.filename;
+
+            if (data.status === 'fertig') {
+                clearInterval(interval);
+
+                document.getElementById('status').textContent =
+                    'Download abgeschlossen';
+
+                document.getElementById('fileUrl').value = data.download_url;
+                document.getElementById('downloadLink').style.display = 'block';
+
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('cancelBtn').disabled = true;
+            }
+
+            if (data.status === 'abgebrochen') {
+                clearInterval(interval);
+
+                document.getElementById('status').textContent =
+                    'Download abgebrochen';
+
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('cancelBtn').disabled = true;
+            }
+        });
+    }, 500);
+}
+
+function cancelDownload() {
+    if (!jobId) return;
+
+    fetch('cancel.php?job=' + jobId);
+    document.getElementById('status').textContent =
+        'Abbruch wird durchgeführt …';
+}
+
+function resetForm() {
+
+    if (interval) {
+        clearInterval(interval);
+    }
+
+    jobId = null;
+    lastPercent = 0;
+
+    document.getElementById('url').value = '';
+    document.getElementById('bar').value = 0;
+    document.getElementById('status').textContent = 'Bereit';
+    document.getElementById('downloadLink').style.display = 'none';
+
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('cancelBtn').disabled = true;
+}
+
+function copyToClipboard() {
+    const input = document.getElementById('fileUrl');
+    input.select();
+    document.execCommand('copy');
+}
+</script>
+
+</body>
+</html>
