@@ -14,8 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
     exit;
 }
 
-/* ---------- Dateien sammeln ---------- */
+/* ---------- Dateien sammeln + Gesamtsumme ---------- */
 $files = [];
+$totalBytes = 0;
 
 if (is_dir(DOWNLOADS_DIR)) {
     foreach (scandir(DOWNLOADS_DIR) as $file) {
@@ -24,10 +25,13 @@ if (is_dir(DOWNLOADS_DIR)) {
         $path = DOWNLOADS_DIR . '/' . $file;
         if (!is_file($path)) continue;
 
+        $sizeBytes = filesize($path);
+        $totalBytes += $sizeBytes;
+
         $files[] = [
             'name' => $file,
-            'size' => number_format(
-                filesize($path) / 1024 / 1024,
+            'size_mb' => number_format(
+                $sizeBytes / 1024 / 1024,
                 2,
                 ',',
                 '.'
@@ -38,6 +42,14 @@ if (is_dir(DOWNLOADS_DIR)) {
         ];
     }
 }
+
+/* ---------- Gesamtsumme formatiert ---------- */
+$totalSizeFormatted = number_format(
+    $totalBytes / 1024 / 1024,
+    2,
+    ',',
+    '.'
+);
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -70,6 +82,14 @@ body {
 .header a {
     font-weight: bold;
     text-decoration: none;
+}
+
+.summary {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    font-weight: bold;
 }
 
 /* ---------- Desktop Tabelle ---------- */
@@ -165,6 +185,11 @@ button {
         <a href="<?= htmlspecialchars(BASE_URL) ?>">⬅ Zurück zum Download</a>
     </div>
 
+    <div class="summary">
+        Gesamtspeicherplatz: <?= $totalSizeFormatted ?> MB
+        (<?= count($files) ?> Dateien)
+    </div>
+
     <?php if (empty($files)): ?>
         <p>Keine Dateien vorhanden.</p>
     <?php else: ?>
@@ -182,7 +207,7 @@ button {
         <?php foreach ($files as $f): ?>
         <tr>
             <td><?= htmlspecialchars($f['name']) ?></td>
-            <td><?= $f['size'] ?> MB</td>
+            <td><?= $f['size_mb'] ?> MB</td>
             <td><?= $f['date'] ?></td>
             <td>
                 <input type="text"
@@ -211,7 +236,7 @@ button {
             <strong><?= htmlspecialchars($f['name']) ?></strong>
 
             <div class="meta">
-                Größe: <?= $f['size'] ?> MB<br>
+                Größe: <?= $f['size_mb'] ?> MB<br>
                 Datum: <?= $f['date'] ?>
             </div>
 
